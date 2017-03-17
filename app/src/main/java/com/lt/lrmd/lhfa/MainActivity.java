@@ -25,6 +25,8 @@ import org.osmdroid.views.overlay.FolderOverlay;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.ScaleBarOverlay;
+
 import android.graphics.drawable.Drawable;
 
 import com.google.android.gms.appindexing.Action;
@@ -105,6 +107,9 @@ public class MainActivity extends AppCompatActivity
         mKmlOverlay = null;
 
         putKMLAsync(kmz_url);
+
+        ScaleBarOverlay scalebar = new ScaleBarOverlay(mapView);
+        mapView.getOverlays().add(scalebar);
 
         client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
     }
@@ -250,7 +255,7 @@ public class MainActivity extends AppCompatActivity
         Style defaultStyle = new Style(defaultBitmap, 0x901010AA, 3.0f, 0x20AA1010);
 
         mKmlOverlay = (FolderOverlay) mKmlDocument.mKmlRoot.buildOverlay(mapView, defaultStyle, null, mKmlDocument);
-        mapView.getOverlays().add(mKmlOverlay);
+        mapView.getOverlays().add(0,mKmlOverlay);
         mapView.invalidate();
     }
 
