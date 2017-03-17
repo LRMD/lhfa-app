@@ -45,9 +45,8 @@ import java.net.URLConnection;
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
     /**
-     * ATTENTION: This was auto-generated to implement the App Indexing API.
-     * See https://g.co/AppIndexing/AndroidStudio for more information.
-     */
+     * See https://g.co/AppIndexing/AndroidStudio
+     **/
     private GoogleApiClient client;
     private static String kmz_url = "http://rk.vdu.lt/phocadownload/Google_Earth/lhfa-updated.kmz";
     public static KmlDocument mKmlDocument; //made static to pass between activities
