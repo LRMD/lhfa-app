@@ -59,14 +59,6 @@ public class MainActivity extends AppCompatActivity
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Pranešk apie ekspediciją!", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
@@ -82,24 +74,39 @@ public class MainActivity extends AppCompatActivity
         mapView.setMultiTouchControls(true);
         mapView.setTileSource(TileSourceFactory.MAPNIK);
 
-        Drawable marker = getResources().getDrawable(android.R.drawable.star_big_on);
+        Drawable marker = getResources().getDrawable(android.R.drawable.star_on);
         int markerWidth = marker.getIntrinsicWidth();
         int markerHeight = marker.getIntrinsicHeight();
         marker.setBounds(0, markerHeight, markerWidth, 0);
 
-        GeoPoint startPoint = new GeoPoint(54.9, 23.85);
+        final GPSTracker tracker = new GPSTracker(getApplicationContext());
+        GeoPoint startPoint = new GeoPoint(tracker.getLatitude(), tracker.getLongitude());
         IMapController mapController;
         mapController = mapView.getController();
         mapController.setZoom(10);
         mapController.setCenter(startPoint);
 
-        /*Marker startMarker = new Marker(mapView);
+        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Snackbar.make(view, "Koordinatės patikslintos!", Snackbar.LENGTH_LONG)
+                        .setAction("Action", null).show();
+                mapView.getController().setCenter(
+                        new GeoPoint(
+                                tracker.getLatitude(),
+                                tracker.getLongitude())
+                );
+            }
+        });
+
+        Marker startMarker = new Marker(mapView);
         startMarker.setPosition(startPoint);
         startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
         mapView.getOverlays().add(startMarker);
 
         startMarker.setIcon(getResources().getDrawable(R.drawable.btn_moreinfo));
-        startMarker.setTitle("Kaunas");*/
+        startMarker.setTitle("Pradžia");
 
         String url = "http://rk.vdu.lt/phocadownload/Google_Earth/lhfa-updated.kmz";
         mKmlDocument = new KmlDocument();
