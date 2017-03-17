@@ -20,7 +20,7 @@
             android:title="Įrankiai" />
     </group>
 
-    <item android:title="Communicate">
+    <item android:title="Bendraukite!">
         <menu>
             <item
                 android:id="@+id/nav_share"
