@@ -76,8 +76,6 @@ public class MainActivity extends AppCompatActivity
             checkPermissions();
         }
 
-        displayVersion();
-
         Context ctx = getApplicationContext();
         Configuration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx));
 
@@ -94,22 +92,7 @@ public class MainActivity extends AppCompatActivity
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
-        mapView = (MapView) findViewById(R.id.mapview);
-        mapView.setBuiltInZoomControls(false);
-        mapView.setMultiTouchControls(true);
-        mapView.setTileSource(TileSourceFactory.MAPNIK);
-
-        Drawable marker = getResources().getDrawable(android.R.drawable.star_on);
-        int markerWidth = marker.getIntrinsicWidth();
-        int markerHeight = marker.getIntrinsicHeight();
-        marker.setBounds(0, markerHeight, markerWidth, 0);
-
-        final GPSTracker tracker = new GPSTracker(getApplicationContext());
-        GeoPoint startPoint = new GeoPoint(tracker.getLatitude(), tracker.getLongitude());
-        IMapController mapController;
-        mapController = mapView.getController();
-        mapController.setZoom(10);
-        mapController.setCenter(startPoint);
+        createMapView();
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -129,7 +112,27 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-        Marker startMarker = new Marker(mapView);
+
+
+        client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
+    }
+
+    public void createMapView() {
+
+        mapView = (MapView) findViewById(R.id.mapview);
+        mapView.setBuiltInZoomControls(false);
+        mapView.setMultiTouchControls(true);
+        mapView.setTileSource(TileSourceFactory.MAPNIK);
+
+
+        final GPSTracker tracker = new GPSTracker(getApplicationContext());
+        GeoPoint startPoint = new GeoPoint(tracker.getLatitude(), tracker.getLongitude());
+        IMapController mapController;
+        mapController = mapView.getController();
+        mapController.setZoom(9);
+        mapController.setCenter(startPoint);
+
+        startMarker = new Marker(mapView);
         startMarker.setPosition(startPoint);
         startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
         mapView.getOverlays().add(startMarker);
@@ -147,8 +150,8 @@ public class MainActivity extends AppCompatActivity
         mapView.setTilesScaledToDpi(true);
 
 
-        client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
     }
+
     @Override
     public void onBackPressed() {
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
@@ -194,7 +197,6 @@ public class MainActivity extends AppCompatActivity
         } else if (id == R.id.nav_slideshow) {
 
         } else if (id == R.id.nav_manage) {
-
         } else if (id == R.id.nav_share) {
 
         } else if (id == R.id.nav_send) {
