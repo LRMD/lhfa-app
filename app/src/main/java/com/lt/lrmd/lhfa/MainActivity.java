@@ -117,10 +117,14 @@ public class MainActivity extends AppCompatActivity
             public void onClick(View view) {
                 Snackbar.make(view, "Koordinatės patikslintos!", Snackbar.LENGTH_LONG)
                         .setAction("Action", null).show();
+                startMarker.setPosition(new GeoPoint(
+                        new GPSTracker(getApplicationContext()).getLatitude(),
+                        new GPSTracker(getApplicationContext()).getLongitude()));
+
                 mapView.getController().setCenter(
                         new GeoPoint(
-                                tracker.getLatitude(),
-                                tracker.getLongitude())
+                                new GPSTracker(getApplicationContext()).getLatitude(),
+                                new GPSTracker(getApplicationContext()).getLongitude())
                 );
             }
         });
@@ -130,10 +134,9 @@ public class MainActivity extends AppCompatActivity
         startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
         mapView.getOverlays().add(startMarker);
 
-        startMarker.setIcon(getResources().getDrawable(R.drawable.btn_moreinfo));
-        startMarker.setTitle("Pradžia");
+        startMarker.setIcon(getResources().getDrawable(R.drawable.ic_menu_mylocation));
+        startMarker.setTitle("Jūsų koordinatės");
 
-        String url = "http://rk.vdu.lt/phocadownload/Google_Earth/lhfa-updated.kmz";
         mKmlDocument = new KmlDocument();
         mKmlOverlay = null;
 
