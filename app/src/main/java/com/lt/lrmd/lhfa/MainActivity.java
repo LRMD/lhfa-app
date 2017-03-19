@@ -1,12 +1,19 @@
 package com.lt.lrmd.lhfa;
 
+import android.Manifest;
+import android.content.Context;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.content.ContextCompat;
 import android.view.View;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
@@ -20,6 +27,7 @@ import android.view.MenuItem;
 import org.osmdroid.api.IMapController;
 import org.osmdroid.bonuspack.kml.KmlDocument;
 import org.osmdroid.bonuspack.kml.Style;
+import org.osmdroid.config.Configuration;
 import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.views.overlay.FolderOverlay;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
@@ -28,6 +36,7 @@ import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.ScaleBarOverlay;
 
 import android.graphics.drawable.Drawable;
+import android.widget.Toast;
 
 import com.google.android.gms.appindexing.Action;
 import com.google.android.gms.appindexing.AppIndex;
@@ -41,6 +50,10 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
@@ -52,13 +65,25 @@ public class MainActivity extends AppCompatActivity
     public static KmlDocument mKmlDocument; //made static to pass between activities
     protected FolderOverlay mKmlOverlay; //root container of overlays from KML reading
     protected MapView mapView;
+    protected Marker startMarker;
+    final private int REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS = 124;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        if (Build.VERSION.SDK_INT >= 23) {
+            checkPermissions();
+        }
+
+        displayVersion();
+
+        Context ctx = getApplicationContext();
+        Configuration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx));
+
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
@@ -263,6 +288,65 @@ public class MainActivity extends AppCompatActivity
         mKmlOverlay = (FolderOverlay) mKmlDocument.mKmlRoot.buildOverlay(mapView, defaultStyle, null, mKmlDocument);
         mapView.getOverlays().add(0,mKmlOverlay);
         mapView.invalidate();
+    }
+
+    // START PERMISSION CHECK
+
+    private void checkPermissions() {
+        List<String> permissions = new ArrayList<String>();
+        String message = "OSMDroid permissions:";
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            permissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
+            message += "\nStorage access to store map tiles.";
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+            message += "\nLocation to show user location.";
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            message += "\nLocation to show user location.";
+        }
+        if (!permissions.isEmpty()) {
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+            String[] params = permissions.toArray(new String[permissions.size()]);
+            requestPermissions(params, REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS);
+        } // else: We already have permissions, so handle as normal
+    }
+
+
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        switch (requestCode) {
+            case REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS: {
+                Map<String, Integer> perms = new HashMap<String, Integer>();
+                // Initial
+                perms.put(Manifest.permission.ACCESS_FINE_LOCATION, PackageManager.PERMISSION_GRANTED);
+                perms.put(Manifest.permission.WRITE_EXTERNAL_STORAGE, PackageManager.PERMISSION_GRANTED);
+                // Fill with results
+                for (int i = 0; i < permissions.length; i++)
+                    perms.put(permissions[i], grantResults[i]);
+                // Check for ACCESS_FINE_LOCATION and WRITE_EXTERNAL_STORAGE
+                Boolean location = perms.get(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+                Boolean storage = perms.get(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+                if (location && storage) {
+                    // All Permissions Granted
+                    Toast.makeText(MainActivity.this, "All permissions granted", Toast.LENGTH_SHORT).show();
+                } else if (location) {
+                    Toast.makeText(this, "Storage permission is required to store map tiles to reduce data usage and for offline usage.", Toast.LENGTH_LONG).show();
+                } else if (storage) {
+                    Toast.makeText(this, "Location permission is required to show the user's location on map.", Toast.LENGTH_LONG).show();
+                } else { // !location && !storage case
+                    // Permission Denied
+                    Toast.makeText(MainActivity.this, "Storage permission is required to store map tiles to reduce data usage and for offline usage." +
+                            "\nLocation permission is required to show the user's location on map.", Toast.LENGTH_SHORT).show();
+                }
+            }
+            break;
+            default:
+                super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
     }
 
 }
