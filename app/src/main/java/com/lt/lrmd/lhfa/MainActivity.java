@@ -144,6 +144,8 @@ public class MainActivity extends AppCompatActivity
 
         ScaleBarOverlay scalebar = new ScaleBarOverlay(mapView);
         mapView.getOverlays().add(scalebar);
+        mapView.setTilesScaledToDpi(true);
+
 
         client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
     }
