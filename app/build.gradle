@@ -30,4 +30,5 @@ dependencies {
     implementation 'com.github.MKergall:osmbonuspack:6.3'
     testImplementation 'junit:junit:4.12'
     implementation 'com.google.android.gms:play-services-appindexing:8.4.0'
+    implementation "androidx.constraintlayout:constraintlayout:2.0.0-beta2"
 }
