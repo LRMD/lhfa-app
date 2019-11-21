@@ -5,4 +5,5 @@
     <string name="navigation_drawer_close">Close navigation drawer</string>
 
     <string name="action_settings">Nustatymai</string>
+    <string name="search_hint">Piliakalnio paieška</string>
 </resources>

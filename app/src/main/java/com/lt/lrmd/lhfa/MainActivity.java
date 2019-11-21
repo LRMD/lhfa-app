@@ -2,8 +2,8 @@ package com.lt.lrmd.lhfa;
 
 import android.Manifest;
 import android.content.Context;
-import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.database.MatrixCursor;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
@@ -11,19 +11,9 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
-import android.support.v4.content.ContextCompat;
 import android.view.View;
-import android.support.design.widget.NavigationView;
-import android.support.v4.view.GravityCompat;
-import android.support.v4.widget.DrawerLayout;
-import android.support.v7.app.ActionBarDrawerToggle;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
-
 import org.osmdroid.api.IMapController;
 import org.osmdroid.bonuspack.kml.KmlDocument;
 import org.osmdroid.bonuspack.kml.Style;
@@ -34,15 +24,23 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.ScaleBarOverlay;
-
 import android.graphics.drawable.Drawable;
+import android.widget.SearchView;
+import android.widget.SimpleCursorAdapter;
 import android.widget.Toast;
-
+import androidx.appcompat.app.ActionBarDrawerToggle;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.content.ContextCompat;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 import com.google.android.gms.appindexing.Action;
 import com.google.android.gms.appindexing.AppIndex;
 import com.google.android.gms.appindexing.Thing;
 import com.google.android.gms.common.api.GoogleApiClient;
-
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.navigation.NavigationView;
+import com.google.android.material.snackbar.Snackbar;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -56,7 +54,7 @@ import java.util.List;
 import java.util.Map;
 
 public class MainActivity extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener {
+        implements NavigationView.OnNavigationItemSelectedListener, AsyncResponse {
     /**
      * See https://g.co/AppIndexing/AndroidStudio
      **/
@@ -68,6 +66,10 @@ public class MainActivity extends AppCompatActivity
     protected Marker startMarker;
     final private int REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS = 124;
 
+    private KmlDocument mKmlDoc;
+    private ArrayList<Placemark> mPlacemarks = null;
+    private SearchView mSearchView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -75,6 +77,7 @@ public class MainActivity extends AppCompatActivity
         if (Build.VERSION.SDK_INT >= 23) {
             checkPermissions();
         }
+
 
         Context ctx = getApplicationContext();
         Configuration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx));
@@ -93,6 +96,9 @@ public class MainActivity extends AppCompatActivity
         navigationView.setNavigationItemSelectedListener(this);
 
         createMapView();
+        mSearchView = findViewById(R.id.searchView);
+        mSearchView.setFocusable(false);
+        mSearchView.clearFocus();
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -100,6 +106,8 @@ public class MainActivity extends AppCompatActivity
             public void onClick(View view) {
                 Snackbar.make(view, "Koordinatės patikslintos!", Snackbar.LENGTH_LONG)
                         .setAction("Action", null).show();
+                IMapController mapController = mapView.getController();
+                mapController.setZoom(9);
                 startMarker.setPosition(new GeoPoint(
                         new GPSTracker(getApplicationContext()).getLatitude(),
                         new GPSTracker(getApplicationContext()).getLongitude()));
@@ -111,10 +119,10 @@ public class MainActivity extends AppCompatActivity
                 );
             }
         });
-
-
-
         client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
+        KMZDataHelper kmzDataHelper = new KMZDataHelper(this);
+        mPlacemarks = kmzDataHelper.getAllPlacemarks();
+
     }
 
     public void createMapView() {
@@ -139,17 +147,14 @@ public class MainActivity extends AppCompatActivity
 
         startMarker.setIcon(getResources().getDrawable(R.drawable.ic_menu_mylocation));
         startMarker.setTitle("Jūsų koordinatės");
-
         mKmlDocument = new KmlDocument();
         mKmlOverlay = null;
 
-        putKMLAsync(kmz_url);
+        //putKMLAsync(kmz_url);
 
         ScaleBarOverlay scalebar = new ScaleBarOverlay(mapView);
         mapView.getOverlays().add(scalebar);
         mapView.setTilesScaledToDpi(true);
-
-
     }
 
     @Override
@@ -236,6 +241,78 @@ public class MainActivity extends AppCompatActivity
         AppIndex.AppIndexApi.end(client, getIndexApiAction());
         client.disconnect();
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        SearchView searchView = findViewById(R.id.searchView);
+        searchView.clearFocus();
+    }
+
+    @Override
+    public void processFinished() {
+        if (mPlacemarks != null)
+        {
+            for (int i = 0; i < mPlacemarks.size(); i++)
+            {
+                Marker marker = new Marker(mapView);
+                marker.setIcon(getResources().getDrawable(R.drawable.marker));
+                marker.setPosition(new GeoPoint(mPlacemarks.get(i).getLatitude(), mPlacemarks.get(i).getLongitude()));
+                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+                marker.setTitle(mPlacemarks.get(i).getName() + "\n" + mPlacemarks.get(i).description);
+                mapView.getOverlays().add(marker);
+            }
+            mapView.invalidate();
+            SearchSuggestionHelper searchSuggestionHelper = new SearchSuggestionHelper();
+            final SearchView searchView = findViewById(R.id.searchView);
+            final SimpleCursorAdapter suggestionAdapter = searchSuggestionHelper.buildSuggestionAdapter(getApplicationContext(), mPlacemarks, null);
+            searchView.setSuggestionsAdapter(suggestionAdapter);
+            searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+                @Override
+                public boolean onQueryTextSubmit(String query) {
+                    showPlaceMarkOnMap(query);
+                    return true;
+                }
+
+                @Override
+                public boolean onQueryTextChange(String newText) {
+                    SearchSuggestionHelper searchSuggestionHelper = new SearchSuggestionHelper();
+                    suggestionAdapter.swapCursor(searchSuggestionHelper.buildSuggestionAdapter(getApplicationContext(), mPlacemarks, newText).getCursor());
+                    return true;
+                }
+            });
+            searchView.setOnSuggestionListener(new SearchView.OnSuggestionListener() {
+                @Override
+                public boolean onSuggestionSelect(int position) {
+                    return false;
+                }
+
+                @Override
+                public boolean onSuggestionClick(int position) {
+                    String query = ((MatrixCursor)suggestionAdapter.getItem(position)).getString(1);
+                    showPlaceMarkOnMap(query);
+                    return true;
+                }
+            });
+        }
+    }
+
+    private void showPlaceMarkOnMap(String query)
+    {
+        for (int k = 0; k < mPlacemarks.size(); k++)
+        {
+            String placMarkName = mPlacemarks.get(k).getName() + ", " + mPlacemarks.get(k).getDescription();
+            if (query.toUpperCase().contains(placMarkName.toUpperCase()))
+            {
+                IMapController mapController = mapView.getController();
+                GeoPoint centerPoint = new GeoPoint(mPlacemarks.get(k).getLatitude(), mPlacemarks.get(k).getLongitude());
+                mapView.getController().setZoom(14);
+                mapController.setCenter(centerPoint);
+                mSearchView.clearFocus();
+            }
+        }
+    }
+
     private class putKML extends AsyncTask<String, Void, Boolean> {
         @Override
         protected Boolean doInBackground(String... url) {
