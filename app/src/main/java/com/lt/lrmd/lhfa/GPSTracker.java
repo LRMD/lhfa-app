@@ -48,6 +48,11 @@ public class GPSTracker extends Service implements LocationListener {
     }
 
     public Location getLocation() {
+        if ( Build.VERSION.SDK_INT >= 23 &&
+             ContextCompat.checkSelfPermission( context, android.Manifest.permission.ACCESS_FINE_LOCATION ) != PackageManager.PERMISSION_GRANTED &&
+             ContextCompat.checkSelfPermission( context, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return  ;
+        }
         try {
             locationManager = (LocationManager) mContext
                     .getSystemService(LOCATION_SERVICE);
