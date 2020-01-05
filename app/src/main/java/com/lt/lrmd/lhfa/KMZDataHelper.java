@@ -22,7 +22,7 @@ import javax.xml.parsers.ParserConfigurationException;
 public class KMZDataHelper {
 
     private MainActivity delegateActivity;
-    private String kmz_url = "http://rk.vdu.lt/phocadownload/Google_Earth/lhfa-updated.kmz";
+    private String kmzFileName = "lhfa-updated.kmz";
     private ArrayList<Placemark> mPlaceMarks = null;
 
     public KMZDataHelper(MainActivity activity) {
@@ -31,7 +31,7 @@ public class KMZDataHelper {
 
     public ArrayList<Placemark> getAllPlacemarks() {
         mPlaceMarks = new ArrayList<>();
-        new ParseKMZ().execute(kmz_url);
+        new ParseKMZ().execute(kmzFileName);
         return mPlaceMarks;
     }
 
@@ -42,7 +42,7 @@ public class KMZDataHelper {
             InputStream inputStream = null;
             ByteArrayOutputStream bOutput = new ByteArrayOutputStream();
             try {
-                inputStream = new URL(strings[0]).openStream();
+                inputStream = delegateActivity.getAssets().open(strings[0]);
             } catch (MalformedURLException e)
             {
                 e.printStackTrace();
