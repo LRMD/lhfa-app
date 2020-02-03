@@ -6,4 +6,7 @@
 
     <string name="action_settings">Nustatymai</string>
     <string name="search_hint">Piliakalnio paieška</string>
+    <string name="show_route">Rodyti Maršutą</string>
+    <string name="distance">Atstumas</string>
+    <string name="meters">m</string>
 </resources>

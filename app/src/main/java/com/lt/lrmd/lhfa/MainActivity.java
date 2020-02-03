@@ -6,10 +6,12 @@ import android.content.pm.PackageManager;
 import android.database.MatrixCursor;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
+import android.location.Location;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.view.View;
 import android.view.Menu;
@@ -18,12 +20,16 @@ import org.osmdroid.api.IMapController;
 import org.osmdroid.bonuspack.kml.KmlDocument;
 import org.osmdroid.bonuspack.kml.Style;
 import org.osmdroid.config.Configuration;
+import org.osmdroid.events.MapEventsReceiver;
+import org.osmdroid.views.overlay.MapEventsOverlay;
 import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.views.overlay.FolderOverlay;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.Polyline;
 import org.osmdroid.views.overlay.ScaleBarOverlay;
+import org.osmdroid.views.overlay.infowindow.InfoWindow;
 import android.graphics.drawable.Drawable;
 import android.widget.SearchView;
 import android.widget.SimpleCursorAdapter;
@@ -52,9 +58,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Observable;
+import java.util.Observer;
 
 public class MainActivity extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener, AsyncResponse {
+        implements NavigationView.OnNavigationItemSelectedListener, AsyncResponse, Observer, MapEventsReceiver {
     /**
      * See https://g.co/AppIndexing/AndroidStudio
      **/
@@ -69,15 +77,20 @@ public class MainActivity extends AppCompatActivity
     private KmlDocument mKmlDoc;
     private ArrayList<Placemark> mPlacemarks = null;
     private SearchView mSearchView;
+    private ObservedLocation observedLocation;
+    private ArrayList<Polyline> routes = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         if (Build.VERSION.SDK_INT >= 23) {
             checkPermissions();
         }
-
+        Configuration.getInstance().setUserAgentValue(getPackageName());
+        Configuration.getInstance().setOsmdroidBasePath(new File(Environment.getExternalStorageDirectory(), "osmdroid"));
+        Configuration.getInstance().setOsmdroidTileCache(new File(Environment.getExternalStorageDirectory(), "osmdroid/tiles"));
+        observedLocation = new ObservedLocation();
+        observedLocation.addObserver(this);
 
         Context ctx = getApplicationContext();
         Configuration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx));
@@ -109,13 +122,13 @@ public class MainActivity extends AppCompatActivity
                 IMapController mapController = mapView.getController();
                 mapController.setZoom(9);
                 startMarker.setPosition(new GeoPoint(
-                        new GPSTracker(getApplicationContext()).getLatitude(),
-                        new GPSTracker(getApplicationContext()).getLongitude()));
+                        new GPSTracker(getApplicationContext(), observedLocation).getLatitude(),
+                        new GPSTracker(getApplicationContext(), observedLocation).getLongitude()));
 
                 mapView.getController().setCenter(
                         new GeoPoint(
-                                new GPSTracker(getApplicationContext()).getLatitude(),
-                                new GPSTracker(getApplicationContext()).getLongitude())
+                                new GPSTracker(getApplicationContext(), observedLocation).getLatitude(),
+                                new GPSTracker(getApplicationContext(), observedLocation).getLongitude())
                 );
             }
         });
@@ -132,8 +145,11 @@ public class MainActivity extends AppCompatActivity
         mapView.setMultiTouchControls(true);
         mapView.setTileSource(TileSourceFactory.MAPNIK);
 
+        MapEventsOverlay mapEventsOverlay = new MapEventsOverlay(this, this);
+        mapView.getOverlays().add(0, mapEventsOverlay);
 
-        final GPSTracker tracker = new GPSTracker(getApplicationContext());
+
+        final GPSTracker tracker = new GPSTracker(getApplicationContext(), observedLocation);
         GeoPoint startPoint = new GeoPoint(tracker.getLatitude(), tracker.getLongitude());
         IMapController mapController;
         mapController = mapView.getController();
@@ -214,7 +230,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     /**
-     *  https://g.co/AppIndexing/AndroidStudio
+     * https://g.co/AppIndexing/AndroidStudio
      */
     public Action getIndexApiAction() {
         Thing object = new Thing.Builder()
@@ -251,6 +267,7 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void processFinished() {
+
         if (mPlacemarks != null)
         {
             for (int i = 0; i < mPlacemarks.size(); i++)
@@ -259,7 +276,14 @@ public class MainActivity extends AppCompatActivity
                 marker.setIcon(getResources().getDrawable(R.drawable.marker));
                 marker.setPosition(new GeoPoint(mPlacemarks.get(i).getLatitude(), mPlacemarks.get(i).getLongitude()));
                 marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-                marker.setTitle(mPlacemarks.get(i).getName() + "\n" + mPlacemarks.get(i).description);
+                final PlacemarkInfoWindow infoWindow = new PlacemarkInfoWindow(R.layout.info_window_layout, mapView, getApplicationContext(), marker, routes, observedLocation, mPlacemarks.get(i));
+                infoWindow.getView().setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        infoWindow.close();
+                    }
+                });
+                marker.setInfoWindow(infoWindow);
                 mapView.getOverlays().add(marker);
             }
             mapView.invalidate();
@@ -311,6 +335,17 @@ public class MainActivity extends AppCompatActivity
                 mSearchView.clearFocus();
             }
         }
+    }
+
+    @Override
+    public boolean singleTapConfirmedHelper(GeoPoint p) {
+        InfoWindow.closeAllInfoWindowsOn(mapView);
+        return true;
+    }
+
+    @Override
+    public boolean longPressHelper(GeoPoint p) {
+        return false;
     }
 
     private class putKML extends AsyncTask<String, Void, Boolean> {
@@ -374,6 +409,18 @@ public class MainActivity extends AppCompatActivity
         mapView.invalidate();
     }
 
+    @Override
+    public void update(Observable obj, final Object arg)
+    {
+        MainActivity.this.runOnUiThread(new Runnable() {
+            public void run() {
+                Location currentLocation = (Location) arg;
+                startMarker.setPosition(new GeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude()));
+                mapView.invalidate();
+            }
+        });
+    }
+
     // START PERMISSION CHECK
 
     private void checkPermissions() {
@@ -427,5 +474,4 @@ public class MainActivity extends AppCompatActivity
                 super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         }
     }
-
 }

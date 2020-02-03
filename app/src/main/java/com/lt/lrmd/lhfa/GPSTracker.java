@@ -13,6 +13,9 @@ import android.os.IBinder;
 import android.provider.Settings;
 import android.util.Log;
 
+import java.util.Observable;
+import java.util.Observer;
+
 /**
  * Created by molotov on 17/03/2017.
  */
@@ -41,9 +44,11 @@ public class GPSTracker extends Service implements LocationListener {
 
     // Declaring a Location Manager
     protected LocationManager locationManager;
+    private ObservedLocation observedLocation;
 
-    public GPSTracker(Context context) {
+    public GPSTracker(Context context, ObservedLocation observedLocation) {
         this.mContext = context;
+        this.observedLocation = observedLocation;
         getLocation();
     }
 
@@ -109,6 +114,7 @@ public class GPSTracker extends Service implements LocationListener {
 
     @Override
     public void onLocationChanged(Location location) {
+        observedLocation.LocationChanged(location);
     }
 
     @Override
@@ -187,4 +193,5 @@ public class GPSTracker extends Service implements LocationListener {
         // Showing Alert Message
         alertDialog.show();
     }
+
 }
