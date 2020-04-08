@@ -22,7 +22,7 @@ import javax.xml.parsers.ParserConfigurationException;
 public class KMZDataHelper {
 
     private MainActivity delegateActivity;
-    private String kmzFileName = "lhfa-updated.kmz";
+    private String kmzFileName = "LHFA_2018-05-01.kmz";
     private ArrayList<Placemark> mPlaceMarks = null;
 
     public KMZDataHelper(MainActivity activity) {
